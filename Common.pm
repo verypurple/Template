@@ -4,7 +4,15 @@ use warnings;
 use strict;
 
 use Exporter qw(import);
-our @EXPORT = qw(serialize unserialize unserialize_ref read_file write_file);
+our @EXPORT = qw(
+    serialize
+    unserialize
+    unserialize_ref
+    read_file
+    write_file
+    get_last_write_time
+    set_last_write_time
+);
 
 sub serialize
 {
@@ -94,6 +102,21 @@ sub write_file {
 		or die "Could not write file '$path'. $!";
 	print $fh $data;
 	close($fh);
+}
+
+sub get_last_write_time {
+    my ($path) = @_;
+
+    my $result = `stat -c %y $path`;
+    chomp($result);
+
+    return $result;
+}
+
+sub set_last_write_time {
+    my ($path, $date) = @_;
+    
+    system("touch -d '$date' $path");
 }
 
 1;

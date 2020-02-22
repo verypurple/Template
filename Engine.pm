@@ -20,28 +20,29 @@ my $i_funcs = {
 };
 
 my $output;
+my $tree;
 
 sub render 
 {
-	my ($path, $data) = @_;
+	my ($template_file, $context) = @_;
 
 	$output = '';
 
-	my $hash = `echo $path | sha1sum | cut -d' ' -f1`;
-	chomp($hash);
-	my $cache_dir = "/var/tmp/tplengine/parser-cache";
-	my $cache_file = "$cache_dir/$hash";
-	mkpath($cache_dir);
-
-	my $tree;
+	my $cache_file = get_cache_from_template($template_file);
+	my $template_modified = get_last_write_time($template_file);
 
 	if (-e $cache_file) {
-		my $data = read_file($cache_file);
+		my $cache_modified = get_last_write_time($cache_file);
 
-		$tree = unserialize($data);
+		if ($template_modified eq $cache_modified) {
+			my $data = read_file($cache_file);
+
+			$tree = unserialize($data);
+		}
 	}
-	else {
-		my $input = read_file($path);
+
+	if (!$tree) {
+		my $input = read_file($template_file);
 		my $tokens = lex_template($input);
 		my $stack = parse_template($tokens);
 		
@@ -49,15 +50,28 @@ sub render
 
 		my $data = serialize($tree);
 		write_file($cache_file, $data);
+		set_last_write_time($cache_file, $template_modified);
 	}
 
 	if ($tree) {
-		interpret($tree, $data);
+		interpret($tree, $context);
 		return $output;
 	}
 	else {
-		return "Input is invalid.";
+		return "Parsing failed, template contains syntax error(s).";
 	}
+}
+
+sub get_cache_from_template {
+	my ($template_file) = @_;
+
+	my $hash = `echo $template_file | sha1sum | cut -d' ' -f1`;
+	chomp($hash);
+	my $cache_dir = "/var/tmp/tplengine/parser-cache";
+	my $cache_file = "$cache_dir/$hash";
+	mkpath($cache_dir);
+
+	return $cache_file;
 }
 
 sub interpret
