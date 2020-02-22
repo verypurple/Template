@@ -13,14 +13,13 @@ sub serialize
     my $i = 0;
     $string .= '[';
 
-	# TODO: escape single quotes
+    # TODO: escape single quotes
 
     for my $el (@$data) {
         if (ref($el) eq 'ARRAY') {
             $string .= serialize($el);
         }
         else {
-			$el =~ s/\'/"/g;
             $string .= "'$el'";
         }
 
