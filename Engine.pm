@@ -5,6 +5,8 @@ use strict;
 
 use Template::Lexer;
 use Template::Parser;
+use Template::Common;
+use File::Path;
 
 use Exporter qw(import);
 our @EXPORT = qw(render);
@@ -25,23 +27,29 @@ sub render
 
 	$output = '';
 
-	$path =~ m/^(.+?)(\.[^.]+?)?$/m;
-	my $cache_path = "$1.ast";
+	my $hash = `echo $path | sha1sum | cut -d' ' -f1`;
+	chomp($hash);
+	my $cache_dir = "/var/tmp/tplengine/parser-cache";
+	my $cache_file = "$cache_dir/$hash";
+	mkpath($cache_dir);
 
-	my $input = read_file($path);
-	my $tokens = lex_template($input);
+	my $tree;
 
-	my $stack;
+	if (-e $cache_file) {
+		my $data = read_file($cache_file);
 
-	if (-e $cache_path) {
-		$stack = read_cache($cache_path);
+		$tree = unserialize($data);
 	}
 	else {
-		$stack = parse_template($tokens);
-		write_cache($cache_path, $stack);
-	}
+		my $input = read_file($path);
+		my $tokens = lex_template($input);
+		my $stack = parse_template($tokens);
+		
+		$tree = parse_stack($stack, $tokens);
 
-	my $tree = parse_stack($stack, $tokens);
+		my $data = serialize($tree);
+		write_file($cache_file, $data);
+	}
 
 	if ($tree) {
 		interpret($tree, $data);
@@ -50,47 +58,6 @@ sub render
 	else {
 		return "Input is invalid.";
 	}
-}
-
-sub read_file {
-	my ($path) = @_;
-	my $data;
-
-	open(my $fh, $path)
-		or die "Could not read file '$path'. $!";
-	while (my $row = <$fh>) {
-		$data .= $row
-	}
-	close($fh);
-
-	return $data;
-}
-
-sub read_cache {
-	my ($path) = @_;
-	my $stack;
-
-	open(my $fh, $path)
-		or die "Could not read file '$path'. $!";
-	while (my $row = <$fh>) {
-		my $state = [split(',', $row)];
-		$state->[1] = [split(' ', $state->[1])];
-		push(@$stack, $state);
-	}
-	close($fh);
-
-	return $stack;
-}
-
-sub write_cache {
-	my ($path, $data) = @_;
-
-	open(my $fh, ">$path")
-		or die "Could not write file '$path'. $!";
-	for my $line (@$data) {
-		print $fh "$line->[0],@{$line->[1]},$line->[2]\n";
-	}
-	close($fh);
 }
 
 sub interpret
@@ -111,6 +78,7 @@ sub evaluate
 {
 	my ($exp, $context) = @_;
 
+	# TODO: evaluate binop operators and other types of expressions
 	return ref($context) eq 'HASH'
 		&& exists($context->{$exp})
 		&& $context->{$exp};
