@@ -8,7 +8,6 @@ use Template::Parser;
 use Template::Common;
 use File::Path;
 
-# TODO: Exporter is slow, remove and use namespaces directly
 use Exporter qw(import);
 our @EXPORT = qw(render);
 

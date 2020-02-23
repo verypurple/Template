@@ -32,13 +32,10 @@ sub serialize
             $el =~ s/\'/\\'/g;
             $string .= "'$el'";
         }
-
-        if ($i++ < $#$data) {
-            $string .= ',';
-        }
+        $string .= ',';
     }
 
-    $string .= ']';
+    $string = substr($string, 0, -1) . ']';
 
     return $string;
 }
@@ -63,14 +60,12 @@ sub unserialize_ref
             push(@$items, unserialize_ref($data));
         }
         elsif ($c eq '\'') {
-            my $i;
-            my $n = 1;
+            my $i = 0;
             my $p;
             
             do {
-                $i = index($$data, "\'", $n);
+                $i = index($$data, "\'", $i + 1);
                 $p = substr($$data, $i - 1, 1);
-                $n = $i + 1;
             } while ($p eq '\\');
 
             my $s = substr($$data, 1, $i - 1);
