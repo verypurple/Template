@@ -8,6 +8,7 @@ use Template::Parser;
 use Template::Common;
 use File::Path;
 
+# TODO: Exporter is slow, remove and use namespaces directly
 use Exporter qw(import);
 our @EXPORT = qw(render);
 
@@ -19,38 +20,40 @@ my $i_funcs = {
 	'identifier' => \&i_stmt_identifier,
 };
 
+my $cache_dir = "/var/tmp/tplengine/parser-cache";
+
 my $output;
 my $tree;
 
 sub render 
 {
-	my ($template_file, $context) = @_;
+	my ($template_path, $context) = @_;
 
 	$output = '';
 
-	my $cache_file = get_cache_from_template($template_file);
-	my $template_modified = get_last_write_time($template_file);
+	my $cache_path = get_cache_from_template($template_path);
+	my $template_modified = get_last_write_time($template_path);
 
-	if (-e $cache_file) {
-		my $cache_modified = get_last_write_time($cache_file);
+	if (-e $cache_path) {
+		my $cache_modified = get_last_write_time($cache_path);
 
 		if ($template_modified eq $cache_modified) {
-			my $data = read_file($cache_file);
+			my $data = read_file($cache_path);
 
 			$tree = unserialize($data);
 		}
 	}
 
 	if (!$tree) {
-		my $input = read_file($template_file);
+		my $input = read_file($template_path);
 		my $tokens = lex_template($input);
 		my $stack = parse_template($tokens);
 		
 		$tree = parse_stack($stack, $tokens);
 
 		my $data = serialize($tree);
-		write_file($cache_file, $data);
-		set_last_write_time($cache_file, $template_modified);
+		write_file($cache_path, $data);
+		set_last_write_time($cache_path, $template_modified);
 	}
 
 	if ($tree) {
@@ -63,15 +66,14 @@ sub render
 }
 
 sub get_cache_from_template {
-	my ($template_file) = @_;
+	my ($template_path) = @_;
 
-	my $hash = `echo $template_file | sha1sum | cut -d' ' -f1`;
+	my $hash = sha1sum($template_path);
 	chomp($hash);
-	my $cache_dir = "/var/tmp/tplengine/parser-cache";
-	my $cache_file = "$cache_dir/$hash";
+	my $cache_path = "$cache_dir/$hash";
 	mkpath($cache_dir);
 
-	return $cache_file;
+	return $cache_path;
 }
 
 sub interpret
