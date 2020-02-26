@@ -15,6 +15,7 @@ our @EXPORT = qw(
     get_last_write_time
     set_last_write_time
     sha1sum
+    quotify
 );
 
 sub serialize
@@ -136,12 +137,12 @@ sub sha1sum
 {
     my ($input) = @_;
 
-    my $pid = open2(*Reader, *Writer, "sha1sum");
+    open2(my ($reader, $writer), "sha1sum");
 
-    print Writer $input;
-    close(Writer);
+    print $writer $input;
+    close($writer);
 
-    my $output = <Reader>;
+    my $output = <$reader>;
     my @slices = split(' ', $output);
 
     return $slices[0];
