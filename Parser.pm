@@ -20,19 +20,45 @@ my $grammar = {
 		['STATEMENTS', 'STATEMENT']
 	],
 	IF_STATEMENT => [
-		['IF', 'IDENTIFIER', 'STATEMENTS', 'END'],
-		['IF', 'IDENTIFIER', 'STATEMENTS', 'ELSE', 'STATEMENTS', 'END'],
+		['IF', 'EXP', 'STATEMENTS', 'END'],
+		['IF', 'EXP', 'STATEMENTS', 'ELSE', 'STATEMENTS', 'END'],
 	],
 	FOR_STATEMENT => [
 		['FOR', 'IDENTIFIER', 'STATEMENTS', 'END'],
+	],
+	EXP => [
+		['PRIMITIVE'],
+		['UNOP', 'PRIMITIVE'],
+		['EXP', 'BINOP', 'EXP'],
+	],
+	PRIMITIVE => [
+		['IDENTIFIER'],
+		['STRING'],
+		['INTEGER'],
+	],
+	UNOP => [
+		['NOT'],
+	],
+	BINOP => [
+		['EQ'],
+		['GT'],
+		['GE'],
+		['LT'],
+		['LE'],
 	],
 };
 
 my $p_funcs = {
 	'STATEMENT : HTML' => \&p_stmt_html,
 	'STATEMENT : IDENTIFIER' => \&p_stmt_identifier,
-	'IF_STATEMENT : IF IDENTIFIER STATEMENTS END' => \&p_stmt_if_then,
-	'IF_STATEMENT : IF IDENTIFIER STATEMENTS ELSE STATEMENTS END' => \&p_stmt_if_then_else,
+	'PRIMITIVE : IDENTIFIER' => \&p_pmtv_identifier,
+	'PRIMITIVE : STRING' => \&p_pmtv_string,
+	'PRIMITIVE : INTEGER' => \&p_pmtv_integer,
+	'EXP : PRIMITIVE' => \&p_exp_pmtv,
+	'EXP : UNOP PRIMITIVE' => \&p_exp_unop,
+	'EXP : EXP BINOP EXP' => \&p_exp_binop,
+	'IF_STATEMENT : IF EXP STATEMENTS END' => \&p_stmt_if_then,
+	'IF_STATEMENT : IF EXP STATEMENTS ELSE STATEMENTS END' => \&p_stmt_if_then_else,
 	'FOR_STATEMENT : FOR IDENTIFIER STATEMENTS END' => \&p_stmt_for,
 };
 
@@ -73,6 +99,36 @@ sub p_stmt_identifier
 sub p_stmt_for
 {
 	return ['for', $_[1], $_[2]];
+}
+
+sub p_pmtv_identifier
+{
+	return ['identifier', $_[0]];
+}
+
+sub p_pmtv_string
+{
+	return ['string', $_[0]];
+}
+
+sub p_pmtv_integer
+{
+	return ['integer', $_[0]];
+}
+
+sub p_exp_unop
+{
+	return ['unop', $_[0]->[0], $_[1]];
+}
+
+sub p_exp_binop
+{
+	return ['binop', $_[0], $_[1]->[0], $_[2]];
+}
+
+sub p_exp_pmtv
+{
+	return $_[0];
 }
 
 1;

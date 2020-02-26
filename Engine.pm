@@ -47,7 +47,11 @@ sub render
 		my $input = read_file($template_path);
 		my $tokens = lex_template($input);
 		my $stack = parse_template($tokens);
-		
+
+		if (!$stack) {
+			return "Parsing failed, template contains syntax error(s).";
+		}
+
 		$tree = parse_stack($stack, $tokens);
 
 		my $data = serialize($tree);
@@ -55,13 +59,9 @@ sub render
 		set_last_write_time($cache_path, $template_modified);
 	}
 
-	if ($tree) {
-		interpret($tree, $context);
-		return $output;
-	}
-	else {
-		return "Parsing failed, template contains syntax error(s).";
-	}
+	interpret($tree, $context);
+
+	return $output;
 }
 
 sub get_cache_from_template {
@@ -92,11 +92,51 @@ sub interpret
 sub evaluate
 {
 	my ($exp, $context) = @_;
+	my ($type, $value) = @$exp;
 
-	# TODO: evaluate binop operators and other types of expressions
-	return ref($context) eq 'HASH'
-		&& exists($context->{$exp})
-		&& $context->{$exp};
+	if ($type eq 'identifier') {
+		if (exists($context->{$value})) {
+			return $context->{$value};
+		}
+		else {
+			warn("Identifier '$value' not found in current context");
+			return;
+		}
+	}
+	if ($type eq 'string') {
+		return $value;
+	}
+	if ($type eq 'integer') {
+		return int($value);
+	}
+	if ($type eq 'unop') {
+		my $op = $exp->[1];
+
+		if ($op eq 'not') {
+			return !evaluate($exp->[2], $context);
+		}
+	}
+	if ($type eq 'binop') {
+		my $op = $exp->[2];
+		my $lv = evaluate($exp->[1], $context);
+		my $rv = evaluate($exp->[3], $context);
+
+		if ($op eq 'eq') {
+			return $lv eq $rv;
+		}
+		if ($op eq 'gt') {
+			return $lv gt $rv;
+		}
+		if ($op eq 'ge') {
+			return $lv ge $rv;
+		}
+		if ($op eq 'lt') {
+			return $lv lt $rv;
+		}
+		if ($op eq 'le') {
+			return $lv le $rv;
+		}
+	}
 }
 
 sub i_stmt_if_then
