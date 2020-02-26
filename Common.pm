@@ -15,7 +15,6 @@ our @EXPORT = qw(
     get_last_write_time
     set_last_write_time
     sha1sum
-    quotify
 );
 
 sub serialize
